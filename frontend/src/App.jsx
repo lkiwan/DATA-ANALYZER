@@ -283,6 +283,35 @@ function App() {
     }
   }
 
+  const handleAIMessage = async () => {
+    if (!aiInput.trim()) return
+
+    const userMessage = { role: 'user', content: aiInput }
+    setAiMessages(prev => [...prev, userMessage])
+    setAiInput('')
+    setAiLoading(true)
+
+    try {
+      const response = await api.askAIAssistant(aiInput, currentDatasetId)
+      const aiMessage = {
+        role: 'assistant',
+        content: response.message,
+        code: response.code
+      }
+      setAiMessages(prev => [...prev, aiMessage])
+    } catch (err) {
+      toast.error('AI Assistant failed: ' + err.message)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const handleRunAICode = (code) => {
+    setCustomCode(code)
+    setActiveTab('code')
+    toast.success('Code sent to Code Editor!', { icon: '📝' })
+  }
+
   const handleExecuteCode = async () => {
     if (!currentDatasetId || !customCode.trim()) {
       toast.error('Please enter code to execute')
@@ -1142,6 +1171,121 @@ function App() {
                     <p className="text-muted-foreground">
                       Upload a dataset first to use natural language queries
                     </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'ai' && (
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle neon>AI Assistant</CardTitle>
+              <CardDescription>Ask me anything about your data - I'll generate code for you!</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+
+                {/* Chat Messages */}
+                <div className="h-96 overflow-y-auto p-4 rounded-lg bg-muted/10 border border-border">
+                  {aiMessages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                      <Bot className="w-16 h-16 text-primary mb-4 opacity-50" />
+                      <p className="text-muted-foreground mb-2">Hi! I'm your AI coding assistant.</p>
+                      <p className="text-sm text-muted-foreground">Ask me things like:</p>
+                      <ul className="text-sm text-muted-foreground mt-2 space-y-1">
+                        <li>"How do I filter my data?"</li>
+                        <li>"Remove duplicate rows"</li>
+                        <li>"Handle missing values"</li>
+                        <li>"Sort by a column"</li>
+                      </ul>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {aiMessages.map((msg, idx) => (
+                        <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[80%] rounded-lg p-4 ${
+                            msg.role === 'user'
+                              ? 'bg-primary/20 text-foreground'
+                              : 'bg-accent/20 text-foreground'
+                          }`}>
+                            {msg.role === 'assistant' && <Bot className="w-5 h-5 inline-block mr-2 text-accent" />}
+                            <div className="whitespace-pre-wrap">{msg.content}</div>
+
+                            {msg.code && (
+                              <div className="mt-3">
+                                <pre className="text-xs bg-background/50 p-3 rounded border border-border overflow-x-auto font-mono">
+                                  {msg.code}
+                                </pre>
+                                <Button
+                                  onClick={() => handleRunAICode(msg.code)}
+                                  variant="neon"
+                                  size="sm"
+                                  className="cursor-target mt-2"
+                                >
+                                  <Code className="w-4 h-4 mr-2" />
+                                  Run it
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {aiLoading && (
+                        <div className="flex justify-start">
+                          <div className="bg-accent/20 rounded-lg p-4">
+                            <Bot className="w-5 h-5 inline-block mr-2 text-accent animate-pulse" />
+                            <span className="text-muted-foreground">Thinking...</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Input */}
+                <div className="flex gap-3">
+                  <Input
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleAIMessage()}
+                    placeholder="Ask me anything about your data... (e.g., 'How do I remove duplicates?')"
+                    className="flex-1"
+                    disabled={aiLoading}
+                  />
+                  <Button
+                    onClick={handleAIMessage}
+                    disabled={!aiInput.trim() || aiLoading}
+                    variant="neon"
+                    className="cursor-target"
+                  >
+                    <Send className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                {/* Suggestions */}
+                {aiMessages.length === 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      'Filter my data',
+                      'Remove duplicates',
+                      'Handle missing values',
+                      'Sort by column',
+                      'Group and aggregate',
+                      'Remove outliers'
+                    ].map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        onClick={() => {
+                          setAiInput(suggestion)
+                          setTimeout(() => handleAIMessage(), 100)
+                        }}
+                        className="cursor-target text-left px-4 py-2 rounded-lg border border-border bg-card/50 hover:bg-accent/10 hover:border-accent transition-all text-sm"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
