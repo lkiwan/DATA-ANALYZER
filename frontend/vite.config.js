@@ -12,6 +12,14 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: true,
+    watch: {
+      usePolling: true, // Enable polling for WSL/Docker environments
+      interval: 100,
+    },
+    hmr: {
+      overlay: true, // Show error overlay
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

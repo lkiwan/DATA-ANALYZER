@@ -12,7 +12,8 @@ import {
   Info,
   Database,
   Zap,
-  Sparkles
+  Sparkles,
+  Code
 } from 'lucide-react'
 
 import { Button } from './components/Button'
@@ -46,6 +47,12 @@ function App() {
 
   // Column type conversion state
   const [typeChangeColumn, setTypeChangeColumn] = useState(null)
+
+  // Code editor state
+  const [customCode, setCustomCode] = useState('')
+  const [codeLanguage, setCodeLanguage] = useState('python')
+  const [codeOutput, setCodeOutput] = useState(null)
+  const [codeError, setCodeError] = useState(null)
 
   // Load dataset from localStorage on mount
   useEffect(() => {
@@ -144,11 +151,25 @@ function App() {
       // Map user-friendly type to pandas dtype
       const typeMapping = {
         'text': 'string',
+        'string': 'string',
         'integer': 'int',
+        'int': 'int',
+        'int64': 'int64',
+        'int32': 'int32',
+        'int16': 'int16',
+        'int8': 'int8',
+        'uint64': 'uint64',
+        'uint32': 'uint32',
+        'uint16': 'uint16',
+        'uint8': 'uint8',
         'float': 'float',
-        'numeric': 'float',
+        'float64': 'float64',
+        'float32': 'float32',
+        'numeric': 'numeric',
         'boolean': 'bool',
-        'datetime': 'datetime'
+        'bool': 'bool',
+        'datetime': 'datetime',
+        'datetime64': 'datetime64'
       }
 
       const pandasType = typeMapping[targetType] || targetType
@@ -255,6 +276,47 @@ function App() {
     }
   }
 
+  const handleExecuteCode = async () => {
+    if (!currentDatasetId || !customCode.trim()) {
+      toast.error('Please enter code to execute')
+      return
+    }
+
+    try {
+      setLoading(true)
+      setCodeOutput(null)
+      setCodeError(null)
+
+      const response = await fetch('http://localhost:8000/api/execute/code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dataset_id: currentDatasetId,
+          code: customCode,
+          language: codeLanguage
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setCodeOutput(result.output || 'Code executed successfully!')
+        await loadDataset(currentDatasetId)
+        toast.success('Code executed successfully!', { icon: '⚡' })
+      } else {
+        setCodeError(result.error)
+        toast.error('Code execution failed')
+      }
+    } catch (err) {
+      setCodeError(err.message)
+      toast.error('Failed to execute code')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const renderDataTable = () => {
     if (!dataPreview.data || dataPreview.data.length === 0) {
       return (
@@ -302,6 +364,7 @@ function App() {
     { id: 'data', label: 'Data', icon: Database },
     { id: 'clean', label: 'Clean', icon: Sparkles },
     { id: 'query', label: 'Query', icon: Zap },
+    { id: 'code', label: 'Code', icon: Code },
     { id: 'export', label: 'Export', icon: Download },
   ]
 
@@ -324,13 +387,35 @@ function App() {
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-neon opacity-50"></div>
         <div className="relative px-8 py-12">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-5xl font-bold text-gradient mb-3 animate-float">
-              DATA ANALYZER
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              Ultra-professional data manipulation platform
-            </p>
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div>
+              <h1 className="text-5xl font-bold text-gradient mb-3 animate-float">
+                DATA ANALYZER
+              </h1>
+              <p className="text-muted-foreground text-lg">
+                Ultra-professional data manipulation platform
+              </p>
+            </div>
+            {currentDatasetId && (
+              <Button
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to reset all changes? This will clear the current dataset.')) {
+                    setCurrentDatasetId(null)
+                    setDatasetInfo(null)
+                    setDataPreview({ data: [], columns: [] })
+                    setNlResult(null)
+                    setActiveTab('upload')
+                    storage.remove('currentDatasetId')
+                    toast.success('All changes reset successfully', { icon: '🔄' })
+                  }
+                }}
+                variant="ghost"
+                className="cursor-target flex items-center gap-2 hover:bg-destructive/20 hover:text-destructive transition-all"
+              >
+                <RefreshCw className="w-5 h-5" />
+                Reset All
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -515,32 +600,95 @@ function App() {
                                 </button>
 
                                 {typeChangeColumn === col && (
-                                  <div className="fixed top-20 left-1/2 -translate-x-1/2 w-64 rounded-lg border-2 border-accent bg-background shadow-2xl z-[9999] p-4 animate-in fade-in zoom-in-95 duration-200">
-                                    <div className="flex items-center justify-between mb-4">
-                                      <p className="text-sm font-bold text-accent uppercase tracking-wide">Convert {col} to:</p>
+                                  <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 rounded-lg border-2 border-accent bg-background shadow-2xl z-[9999] p-3 animate-in fade-in zoom-in-95 duration-200 max-h-[70vh] overflow-y-auto">
+                                    <div className="flex items-center justify-between mb-3">
+                                      <p className="text-xs font-bold text-accent uppercase tracking-wide">Convert to:</p>
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation()
                                           setTypeChangeColumn(null)
                                         }}
-                                        className="cursor-target text-muted-foreground hover:text-accent transition-colors"
+                                        className="cursor-target text-muted-foreground hover:text-accent transition-colors text-sm"
                                       >
                                         ✕
                                       </button>
                                     </div>
                                     <div className="space-y-2">
-                                      {['text', 'integer', 'float', 'boolean', 'datetime'].map(targetType => (
-                                        <button
-                                          key={targetType}
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleChangeColumnType(col, targetType)
-                                          }}
-                                          className="cursor-target w-full text-left px-4 py-3 text-sm font-medium rounded-md hover:bg-accent/20 hover:text-accent transition-all border border-border hover:border-accent"
-                                        >
-                                          {targetType.charAt(0).toUpperCase() + targetType.slice(1)}
-                                        </button>
-                                      ))}
+                                      {/* Common Types */}
+                                      <div>
+                                        <p className="text-[10px] font-semibold text-muted-foreground mb-1 uppercase">Common</p>
+                                        <div className="space-y-0.5">
+                                          {['text', 'numeric', 'integer', 'float', 'boolean', 'datetime'].map(targetType => (
+                                            <button
+                                              key={targetType}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleChangeColumnType(col, targetType)
+                                              }}
+                                              className="cursor-target w-full text-left px-2 py-1.5 text-xs font-medium rounded hover:bg-accent/20 hover:text-accent transition-all border border-border hover:border-accent"
+                                            >
+                                              {targetType.charAt(0).toUpperCase() + targetType.slice(1)}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {/* Integer Types */}
+                                      <div>
+                                        <p className="text-[10px] font-semibold text-muted-foreground mb-1 uppercase">Integer</p>
+                                        <div className="grid grid-cols-2 gap-0.5">
+                                          {['int8', 'int16', 'int32', 'int64'].map(targetType => (
+                                            <button
+                                              key={targetType}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleChangeColumnType(col, targetType)
+                                              }}
+                                              className="cursor-target text-left px-2 py-1.5 text-[10px] font-medium rounded hover:bg-accent/20 hover:text-accent transition-all border border-border hover:border-accent"
+                                            >
+                                              {targetType}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {/* Unsigned Integer Types */}
+                                      <div>
+                                        <p className="text-[10px] font-semibold text-muted-foreground mb-1 uppercase">Unsigned</p>
+                                        <div className="grid grid-cols-2 gap-0.5">
+                                          {['uint8', 'uint16', 'uint32', 'uint64'].map(targetType => (
+                                            <button
+                                              key={targetType}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleChangeColumnType(col, targetType)
+                                              }}
+                                              className="cursor-target text-left px-2 py-1.5 text-[10px] font-medium rounded hover:bg-accent/20 hover:text-accent transition-all border border-border hover:border-accent"
+                                            >
+                                              {targetType}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {/* Float Types */}
+                                      <div>
+                                        <p className="text-[10px] font-semibold text-muted-foreground mb-1 uppercase">Float</p>
+                                        <div className="grid grid-cols-2 gap-0.5">
+                                          {['float32', 'float64'].map(targetType => (
+                                            <button
+                                              key={targetType}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleChangeColumnType(col, targetType)
+                                              }}
+                                              className="cursor-target text-left px-2 py-1.5 text-[10px] font-medium rounded hover:bg-accent/20 hover:text-accent transition-all border border-border hover:border-accent"
+                                            >
+                                              {targetType}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
                                     </div>
                                   </div>
                                 )}
@@ -837,73 +985,6 @@ function App() {
                   </Button>
                 </div>
 
-                {/* Query Result */}
-                {nlResult && (
-                  <div className="space-y-4">
-                    <div className="p-4 neon-border rounded-lg bg-primary/5">
-                      <p className="text-sm text-muted-foreground mb-2">Interpretation:</p>
-                      <p className="text-foreground">{nlResult.interpretation}</p>
-                      {nlResult.rows !== undefined && (
-                        <p className="text-sm text-primary mt-2">{nlResult.rows} rows affected</p>
-                      )}
-                    </div>
-
-                    {/* Query Results Table */}
-                    {dataPreview.data && dataPreview.data.length > 0 && (
-                      <Card className="glass-card">
-                        <CardHeader>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <CardTitle neon>Query Results</CardTitle>
-                              <CardDescription>
-                                Showing {Math.min(50, dataPreview.data.length)} of {dataPreview.data.length} rows
-                              </CardDescription>
-                            </div>
-                            <Button
-                              onClick={() => setActiveTab('data')}
-                              variant="ghost"
-                              size="sm"
-                              className="cursor-target"
-                            >
-                              View All Data
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="overflow-x-auto rounded-lg">
-                            <table className="w-full data-grid">
-                              <thead>
-                                <tr>
-                                  <th className="px-4 py-3 text-left">#</th>
-                                  {dataPreview.columns.map((col) => (
-                                    <th key={col} className="px-4 py-3 text-left">{col}</th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {dataPreview.data.slice(0, 50).map((row, idx) => (
-                                  <tr key={idx}>
-                                    <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
-                                    {dataPreview.columns.map((col) => (
-                                      <td key={col} className="px-4 py-3">
-                                        {row[col] !== null && row[col] !== undefined
-                                          ? typeof row[col] === 'number'
-                                            ? formatNumber(row[col])
-                                            : String(row[col])
-                                          : <span className="italic text-muted-foreground">(empty)</span>}
-                                      </td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                )}
-
                 {/* Dynamic Examples Section */}
                 {dataPreview.columns.length > 0 && (
                   <div className="p-6 rounded-xl neon-border-pink bg-accent/5">
@@ -971,12 +1052,249 @@ function App() {
                   </div>
                 )}
 
+                {/* Query Result */}
+                {nlResult && (
+                  <div className="space-y-4">
+                    <div className="p-4 neon-border rounded-lg bg-primary/5">
+                      <p className="text-sm text-muted-foreground mb-2">Interpretation:</p>
+                      <p className="text-foreground">{nlResult.interpretation}</p>
+                      {nlResult.rows !== undefined && (
+                        <p className="text-sm text-primary mt-2">{nlResult.rows} rows affected</p>
+                      )}
+                    </div>
+
+                    {/* Query Results Table */}
+                    {dataPreview.data && dataPreview.data.length > 0 && (
+                      <Card className="glass-card">
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <CardTitle neon>Query Results</CardTitle>
+                              <CardDescription>
+                                Showing {Math.min(50, dataPreview.data.length)} of {dataPreview.data.length} rows
+                              </CardDescription>
+                            </div>
+                            <Button
+                              onClick={() => setActiveTab('data')}
+                              variant="ghost"
+                              size="sm"
+                              className="cursor-target"
+                            >
+                              View All Data
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="overflow-x-auto rounded-lg">
+                            <table className="w-full data-grid">
+                              <thead>
+                                <tr>
+                                  <th className="px-4 py-3 text-left">#</th>
+                                  {dataPreview.columns.map((col) => (
+                                    <th key={col} className="px-4 py-3 text-left">{col}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {dataPreview.data.slice(0, 50).map((row, idx) => (
+                                  <tr key={idx}>
+                                    <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
+                                    {dataPreview.columns.map((col) => (
+                                      <td key={col} className="px-4 py-3">
+                                        {row[col] !== null && row[col] !== undefined
+                                          ? typeof row[col] === 'number'
+                                            ? formatNumber(row[col])
+                                            : String(row[col])
+                                          : <span className="italic text-muted-foreground">(empty)</span>}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                )}
+
                 {/* No Dataset Warning */}
                 {!currentDatasetId && (
                   <div className="p-6 rounded-lg border border-border bg-muted/10 text-center">
                     <Database className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
                     <p className="text-muted-foreground">
                       Upload a dataset first to use natural language queries
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'code' && (
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle neon>Python Code Editor</CardTitle>
+              <CardDescription>Execute custom Python code to transform your data</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+
+                {/* Code Editor */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Write Your Code
+                  </label>
+                  <textarea
+                    value={customCode}
+                    onChange={(e) => setCustomCode(e.target.value)}
+                    placeholder="# Write your Python code here&#10;# Available variables:&#10;#   df - Your dataset (pandas DataFrame)&#10;#   pd - pandas module&#10;#   np - numpy module&#10;&#10;# Example:&#10;# df['new_column'] = df['existing_column'] * 2&#10;# print(df.head())"
+                    className="w-full h-96 px-4 py-3 rounded-lg bg-input border border-border text-foreground font-mono text-sm focus:ring-2 focus:ring-primary resize-none"
+                    disabled={!currentDatasetId}
+                  />
+                </div>
+
+                {/* Execute Button */}
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleExecuteCode}
+                    disabled={!currentDatasetId || !customCode.trim() || loading}
+                    loading={loading}
+                    variant="neon"
+                    className="cursor-target"
+                  >
+                    <Code className="w-5 h-5" />
+                    Execute Code
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setCustomCode('')
+                      setCodeOutput(null)
+                      setCodeError(null)
+                    }}
+                    disabled={!customCode && !codeOutput && !codeError}
+                    variant="ghost"
+                    className="cursor-target"
+                  >
+                    Clear
+                  </Button>
+                </div>
+
+                {/* Output Display */}
+                {codeOutput && (
+                  <div className="p-4 rounded-lg neon-border bg-primary/5">
+                    <h4 className="text-sm font-semibold text-primary mb-2">Output:</h4>
+                    <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">{codeOutput}</pre>
+                  </div>
+                )}
+
+                {/* Error Display */}
+                {codeError && (
+                  <div className="p-4 rounded-lg border border-destructive bg-destructive/5">
+                    <h4 className="text-sm font-semibold text-destructive mb-2">Error:</h4>
+                    <pre className="text-sm text-destructive whitespace-pre-wrap font-mono">{codeError}</pre>
+                  </div>
+                )}
+
+                {/* Example Code Snippets */}
+                <div className="p-6 rounded-xl neon-border-pink bg-accent/5">
+                  <h3 className="text-lg font-bold text-gradient mb-3 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-accent" />
+                    Example Code Snippets (Click to use)
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Common data transformation examples with your columns
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {(() => {
+                      // Get actual column names from the dataset
+                      const columns = dataPreview.data && dataPreview.data.length > 0 ? Object.keys(dataPreview.data[0]) : []
+
+                      // Find numeric and text columns
+                      let numericCols = []
+                      let textCols = []
+
+                      if (dataPreview.data && dataPreview.data.length > 0) {
+                        numericCols = columns.filter(col => {
+                          const sample = dataPreview.data[0][col]
+                          return typeof sample === 'number' || !isNaN(Number(sample))
+                        })
+                        textCols = columns.filter(col => {
+                          const sample = dataPreview.data[0][col]
+                          return typeof sample === 'string' && isNaN(Number(sample))
+                        })
+                      }
+
+                      // Select appropriate columns for examples
+                      const col1 = numericCols[0] || columns[0] || 'column1'
+                      const col2 = numericCols[1] || columns[1] || 'column2'
+                      const numCol = numericCols[0] || columns[0] || 'column'
+                      const catCol = textCols[0] || columns[0] || 'category'
+                      const valCol = numericCols[0] || columns[0] || 'value'
+
+                      return [
+                        {
+                          title: 'Add a calculated column',
+                          code: `# Add a new column based on calculation\ndf['new_column'] = df['${col1}'] + df['${col2}']\nprint(df.head())`
+                        },
+                        {
+                          title: 'Filter rows conditionally',
+                          code: `# Filter rows based on condition\ndf = df[df['${numCol}'] > 100]\nprint(f'Filtered to {len(df)} rows')`
+                        },
+                        {
+                          title: 'Remove outliers',
+                          code: `# Remove outliers using IQR method\nQ1 = df['${numCol}'].quantile(0.25)\nQ3 = df['${numCol}'].quantile(0.75)\nIQR = Q3 - Q1\ndf = df[(df['${numCol}'] >= Q1 - 1.5*IQR) & (df['${numCol}'] <= Q3 + 1.5*IQR)]\nprint(f'Removed outliers, {len(df)} rows remaining')`
+                        },
+                        {
+                          title: 'Normalize a column',
+                          code: `# Normalize column to 0-1 range\ndf['normalized'] = (df['${numCol}'] - df['${numCol}'].min()) / (df['${numCol}'].max() - df['${numCol}'].min())\nprint(df[['${numCol}', 'normalized']].head())`
+                        },
+                        {
+                          title: 'Group and aggregate',
+                          code: `# Group by category and calculate mean\ngrouped = df.groupby('${catCol}')['${valCol}'].mean()\nprint(grouped)`
+                        },
+                        {
+                          title: 'Handle missing values custom',
+                          code: `# Fill missing with column mean\ndf['${numCol}'].fillna(df['${numCol}'].mean(), inplace=True)\nprint(f'Missing values: {df.isnull().sum().sum()}')`
+                        },
+                      ]
+                    })().map((example, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setCustomCode(example.code)}
+                        className="p-3 rounded-lg border border-border bg-card/50 hover:bg-accent/10 hover:border-accent transition-all text-left group cursor-target"
+                        disabled={!currentDatasetId}
+                      >
+                        <div className="flex items-start gap-2">
+                          <Code className="w-4 h-4 text-accent mt-0.5 opacity-60 group-hover:opacity-100" />
+                          <div className="flex-1">
+                            <span className="text-sm font-semibold text-foreground group-hover:text-accent transition-colors block mb-1">
+                              {example.title}
+                            </span>
+                            <span className="text-xs text-muted-foreground font-mono line-clamp-2">
+                              {example.code.split('\n')[1]}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-4 p-3 rounded-lg bg-muted/20 border border-border">
+                    <p className="text-xs text-muted-foreground">
+                      <strong className="text-foreground">Security:</strong> Code execution is sandboxed. Only safe operations are allowed.
+                      File I/O, imports, and dangerous operations are restricted.
+                    </p>
+                  </div>
+                </div>
+
+                {/* No Dataset Warning */}
+                {!currentDatasetId && (
+                  <div className="p-6 rounded-lg border border-border bg-muted/10 text-center">
+                    <Database className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                    <p className="text-muted-foreground">
+                      Upload a dataset first to use the code editor
                     </p>
                   </div>
                 )}

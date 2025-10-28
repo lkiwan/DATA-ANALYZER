@@ -8,6 +8,8 @@ import json
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel
 import chardet
+import signal
+from contextlib import redirect_stdout, redirect_stderr
 
 from api.import_data import detect_delimiter, detect_encoding, import_dataframe
 from api.cleaning import (
@@ -86,6 +88,11 @@ class TransformConfig(BaseModel):
 class NLQueryConfig(BaseModel):
     dataset_id: str
     query: str
+
+class CodeExecutionConfig(BaseModel):
+    dataset_id: str
+    code: str
+    language: str  # 'python' or 'r'
 
 # Health check
 @app.get("/")
@@ -388,6 +395,89 @@ async def natural_language_query(config: NLQueryConfig):
         return {
             "success": False,
             "error": result["error"]
+        }
+
+# Custom Code Execution
+@app.post("/api/execute/code")
+async def execute_custom_code(config: CodeExecutionConfig):
+    """Execute custom Python code on the dataset"""
+    if config.dataset_id not in datasets:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    if config.language.lower() != 'python':
+        raise HTTPException(status_code=400, detail="Only Python is supported")
+
+    df = datasets[config.dataset_id].copy()
+
+    try:
+        # Create safe execution environment
+        stdout_capture = io.StringIO()
+        stderr_capture = io.StringIO()
+
+        # Safe namespace with only necessary modules
+        safe_globals = {
+            'pd': pd,
+            'np': np,
+            'df': df,
+            '__builtins__': {
+                'print': print,
+                'len': len,
+                'range': range,
+                'enumerate': enumerate,
+                'zip': zip,
+                'map': map,
+                'filter': filter,
+                'sum': sum,
+                'min': min,
+                'max': max,
+                'abs': abs,
+                'round': round,
+                'int': int,
+                'float': float,
+                'str': str,
+                'bool': bool,
+                'list': list,
+                'dict': dict,
+                'set': set,
+                'tuple': tuple,
+            }
+        }
+
+        # Execute code with timeout and capture output
+        with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
+            exec(config.code, safe_globals)
+
+        # Get the modified dataframe if it exists
+        modified_df = safe_globals.get('df', df)
+
+        # Validate that df is still a DataFrame
+        if not isinstance(modified_df, pd.DataFrame):
+            raise Exception("The variable 'df' must remain a pandas DataFrame")
+
+        # Update the dataset
+        datasets[config.dataset_id] = modified_df
+
+        output = stdout_capture.getvalue()
+        errors = stderr_capture.getvalue()
+
+        return {
+            "success": True,
+            "dataset_id": config.dataset_id,
+            "rows": len(modified_df),
+            "columns": len(modified_df.columns),
+            "output": output if output else "Code executed successfully",
+            "errors": errors if errors else None
+        }
+
+    except SyntaxError as e:
+        return {
+            "success": False,
+            "error": f"Syntax Error: {str(e)}"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Execution Error: {str(e)}"
         }
 
 # Export endpoints

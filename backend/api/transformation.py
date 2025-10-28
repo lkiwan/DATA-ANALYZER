@@ -43,22 +43,66 @@ def transform_columns(
         dtype = params.get('dtype')
         if col_name and dtype and col_name in df.columns:
             try:
-                if dtype == 'int':
-                    # Handle European decimal format (comma as decimal separator)
-                    if df[col_name].dtype == 'object':
-                        df[col_name] = df[col_name].astype(str).str.replace(',', '.', regex=False)
-                    df[col_name] = pd.to_numeric(df[col_name], errors='coerce').astype('Int64')
-                elif dtype == 'float':
-                    # Handle European decimal format (comma as decimal separator)
-                    if df[col_name].dtype == 'object':
-                        df[col_name] = df[col_name].astype(str).str.replace(',', '.', regex=False)
-                    df[col_name] = pd.to_numeric(df[col_name], errors='coerce')
-                elif dtype == 'string':
+                # Helper function to clean numeric strings
+                def clean_numeric(series):
+                    if series.dtype == 'object':
+                        return series.astype(str).str.replace(',', '.', regex=False)
+                    return series
+
+                # Integer types
+                if dtype == 'int' or dtype == 'int64':
+                    df[col_name] = pd.to_numeric(clean_numeric(df[col_name]), errors='coerce').astype('Int64')
+                elif dtype == 'int32':
+                    df[col_name] = pd.to_numeric(clean_numeric(df[col_name]), errors='coerce').astype('Int32')
+                elif dtype == 'int16':
+                    df[col_name] = pd.to_numeric(clean_numeric(df[col_name]), errors='coerce').astype('Int16')
+                elif dtype == 'int8':
+                    df[col_name] = pd.to_numeric(clean_numeric(df[col_name]), errors='coerce').astype('Int8')
+
+                # Unsigned integer types
+                elif dtype == 'uint64':
+                    df[col_name] = pd.to_numeric(clean_numeric(df[col_name]), errors='coerce').astype('UInt64')
+                elif dtype == 'uint32':
+                    df[col_name] = pd.to_numeric(clean_numeric(df[col_name]), errors='coerce').astype('UInt32')
+                elif dtype == 'uint16':
+                    df[col_name] = pd.to_numeric(clean_numeric(df[col_name]), errors='coerce').astype('UInt16')
+                elif dtype == 'uint8':
+                    df[col_name] = pd.to_numeric(clean_numeric(df[col_name]), errors='coerce').astype('UInt8')
+
+                # Float types
+                elif dtype == 'float' or dtype == 'float64':
+                    df[col_name] = pd.to_numeric(clean_numeric(df[col_name]), errors='coerce').astype('float64')
+                elif dtype == 'float32':
+                    df[col_name] = pd.to_numeric(clean_numeric(df[col_name]), errors='coerce').astype('float32')
+
+                # Numeric (generic - converts to appropriate numeric type)
+                elif dtype == 'numeric':
+                    df[col_name] = pd.to_numeric(clean_numeric(df[col_name]), errors='coerce')
+
+                # String/Text
+                elif dtype == 'string' or dtype == 'text':
                     df[col_name] = df[col_name].astype(str)
-                elif dtype == 'datetime':
+
+                # Boolean
+                elif dtype == 'bool' or dtype == 'boolean':
+                    # Convert to boolean intelligently
+                    if df[col_name].dtype == 'object':
+                        # Handle common boolean representations
+                        bool_map = {
+                            'true': True, 'false': False,
+                            'yes': True, 'no': False,
+                            '1': True, '0': False,
+                            't': True, 'f': False,
+                            'y': True, 'n': False
+                        }
+                        df[col_name] = df[col_name].astype(str).str.lower().map(bool_map)
+                    else:
+                        df[col_name] = df[col_name].astype(bool)
+
+                # DateTime types
+                elif dtype == 'datetime' or dtype == 'datetime64':
                     df[col_name] = pd.to_datetime(df[col_name], errors='coerce')
-                elif dtype == 'bool':
-                    df[col_name] = df[col_name].astype(bool)
+
             except Exception as e:
                 print(f"Error casting {col_name} to {dtype}: {e}")
 
