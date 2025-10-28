@@ -398,22 +398,28 @@ function App() {
             </div>
             {currentDatasetId && (
               <Button
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to reset all changes? This will clear the current dataset.')) {
-                    setCurrentDatasetId(null)
-                    setDatasetInfo(null)
-                    setDataPreview({ data: [], columns: [] })
-                    setNlResult(null)
-                    setActiveTab('upload')
-                    storage.remove('currentDatasetId')
-                    toast.success('All changes reset successfully', { icon: '🔄' })
+                onClick={async () => {
+                  if (window.confirm('Are you sure you want to reset all changes? This will restore the original uploaded data.')) {
+                    try {
+                      setLoading(true)
+                      // Reload the original dataset
+                      await loadDataset(currentDatasetId)
+                      setNlResult(null)
+                      toast.success('Data restored to original state', { icon: '🔄' })
+                    } catch (err) {
+                      toast.error('Failed to reset data')
+                      setError(err.message)
+                    } finally {
+                      setLoading(false)
+                    }
                   }
                 }}
                 variant="ghost"
-                className="cursor-target flex items-center gap-2 hover:bg-destructive/20 hover:text-destructive transition-all"
+                className="cursor-target flex items-center gap-2 hover:bg-warning/20 hover:text-warning transition-all"
+                disabled={loading}
               >
-                <RefreshCw className="w-5 h-5" />
-                Reset All
+                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                Reset Changes
               </Button>
             )}
           </div>
