@@ -342,3 +342,58 @@
     border-image: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink)) 1;
   }
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+    font-size: 14px;
+  }
+
+  /* Disable animations on mobile for better performance */
+  body::before {
+    animation: none;
+  }
+
+  /* Smaller glow effects on mobile */
+  .neon-text {
+    text-shadow:
+      0 0 5px var(--neon-cyan),
+      0 0 10px var(--neon-cyan);
+  }
+
+  .neon-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  /* Reduce neon glow intensity on mobile */
+  .glass-card:hover {
+    transform: none;
+  }
+
+  /* Smaller border glows */
+  .neon-border {
+    box-shadow:
+      0 0 3px var(--neon-cyan),
+      0 0 5px var(--neon-cyan);
+  }
+
+  /* Adjust scrollbar for mobile */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 13px;
+  }
+
+  .neon-button {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+}

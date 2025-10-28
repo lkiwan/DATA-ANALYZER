@@ -2,9 +2,17 @@ import { useEffect, useRef, useCallback } from 'react';
 import { gsap } from 'gsap';
 
 const NeonCursor = ({ targetSelector = '.cursor-target', hideDefaultCursor = true }) => {
+  // Don't render on mobile/touch devices
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
   const cursorRef = useRef(null);
   const dotRef = useRef(null);
   const ringRef = useRef(null);
+
+  // Return null on mobile devices
+  if (isMobile) {
+    return null;
+  }
 
   const moveCursor = useCallback((x, y) => {
     if (!cursorRef.current) return;

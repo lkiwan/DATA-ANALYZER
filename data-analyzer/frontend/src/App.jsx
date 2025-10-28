@@ -438,13 +438,13 @@ function App() {
       {/* Animated Header */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-neon opacity-50"></div>
-        <div className="relative px-8 py-12">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="relative px-4 md:px-8 py-6 md:py-12">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-5xl font-bold text-gradient mb-3 animate-float">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gradient mb-2 md:mb-3">
                 DATA ANALYZER
               </h1>
-              <p className="text-muted-foreground text-lg">
+              <p className="text-muted-foreground text-sm md:text-base lg:text-lg">
                 Ultra-professional data manipulation platform
               </p>
             </div>
@@ -480,20 +480,20 @@ function App() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-8">
         {/* Tabs Navigation */}
-        <div className="flex gap-3 mb-8 overflow-x-auto pb-2">
+        <div className="flex gap-2 md:gap-3 mb-6 md:mb-8 overflow-x-auto pb-2">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`cursor-target flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 whitespace-nowrap ${
+              className={`cursor-target flex items-center gap-1.5 md:gap-2 px-3 md:px-6 py-2 md:py-3 rounded-lg text-sm md:text-base font-semibold transition-all duration-300 whitespace-nowrap ${
                 activeTab === id
                   ? 'neon-border bg-primary/10 text-primary'
                   : 'bg-card hover:bg-muted text-foreground'
               }`}
             >
-              <Icon className="w-5 h-5" />
+              <Icon className="w-4 h-4 md:w-5 md:h-5" />
               {label}
             </button>
           ))}
