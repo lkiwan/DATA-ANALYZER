@@ -37,6 +37,7 @@ app.add_middleware(
 
 # In-memory storage for datasets (session-based)
 datasets: Dict[str, pd.DataFrame] = {}
+original_datasets: Dict[str, pd.DataFrame] = {}  # Store original unmodified datasets
 dataset_metadata: Dict[str, Dict[str, Any]] = {}
 
 # Pydantic models for request bodies
@@ -136,6 +137,7 @@ async def upload_file(file: UploadFile = File(...)):
         # Generate dataset ID
         dataset_id = f"dataset_{len(datasets)}"
         datasets[dataset_id] = df
+        original_datasets[dataset_id] = df.copy()  # Store original copy
         dataset_metadata[dataset_id] = {"file_type": file_ext}
 
         # Convert NaN to None for JSON serialization
@@ -198,6 +200,25 @@ async def get_dataset_info(dataset_id: str):
         "missing_values": {k: int(v) for k, v in df.isnull().sum().to_dict().items()},
         "memory_usage": int(df.memory_usage(deep=True).sum()),
         "duplicate_rows": int(df.duplicated().sum()),
+    }
+
+@app.post("/api/datasets/{dataset_id}/reset")
+async def reset_dataset(dataset_id: str):
+    """Reset dataset to original uploaded state"""
+    if dataset_id not in datasets:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    if dataset_id not in original_datasets:
+        raise HTTPException(status_code=404, detail="Original dataset not found")
+
+    # Restore the original dataset
+    datasets[dataset_id] = original_datasets[dataset_id].copy()
+
+    return {
+        "success": True,
+        "message": "Dataset reset to original state",
+        "rows": int(datasets[dataset_id].shape[0]),
+        "columns": int(datasets[dataset_id].shape[1])
     }
 
 # Cleaning endpoints

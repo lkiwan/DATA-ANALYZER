@@ -402,7 +402,9 @@ function App() {
                   if (window.confirm('Are you sure you want to reset all changes? This will restore the original uploaded data.')) {
                     try {
                       setLoading(true)
-                      // Reload the original dataset
+                      // Reset dataset to original state on backend
+                      await api.resetDataset(currentDatasetId)
+                      // Reload the dataset to get the reset data
                       await loadDataset(currentDatasetId)
                       setNlResult(null)
                       toast.success('Data restored to original state', { icon: '🔄' })
