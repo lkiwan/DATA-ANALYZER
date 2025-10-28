@@ -293,14 +293,27 @@ function App() {
 
     try {
       const response = await api.askAIAssistant(aiInput, currentDatasetId)
+      console.log('AI Response:', response)
+
+      if (!response || !response.message) {
+        throw new Error('Invalid response from AI')
+      }
+
       const aiMessage = {
         role: 'assistant',
         content: response.message,
         code: response.code
       }
       setAiMessages(prev => [...prev, aiMessage])
+      toast.success('AI responded!', { icon: '🤖' })
     } catch (err) {
+      console.error('AI Error:', err)
       toast.error('AI Assistant failed: ' + err.message)
+      // Add error message to chat
+      setAiMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Error: ${err.message}. Please try again.`
+      }])
     } finally {
       setAiLoading(false)
     }
@@ -340,7 +353,8 @@ function App() {
       if (result.success) {
         setCodeOutput(result.output || 'Code executed successfully!')
         await loadDataset(currentDatasetId)
-        toast.success('Code executed successfully!', { icon: '⚡' })
+        setActiveTab('data')  // Switch to Data tab to show results
+        toast.success('Code executed successfully! Check the Data tab.', { icon: '⚡' })
       } else {
         setCodeError(result.error)
         toast.error('Code execution failed')

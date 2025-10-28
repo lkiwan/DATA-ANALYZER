@@ -580,10 +580,6 @@ async def delete_rows(config: DeleteRowsConfig):
         "message": f"Deleted {len(config.row_indices)} row(s)"
     }
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
 # AI Assistant Model
 class AIAssistantRequest(BaseModel):
     message: str
@@ -649,7 +645,47 @@ print(f"Original rows: {len(df)}, After cleaning: {len(df_clean)}")"""
 df_unique = df.drop_duplicates()
 print(f"Removed {len(df) - len(df_unique)} duplicate rows")
 print(df_unique.head())"""
-    
+
+    elif ("remove" in message or "drop" in message or "delete" in message) and "column" in message:
+        # Extract column name from message
+        col_to_remove = None
+
+        # First try to find column name from dataset columns
+        for col in columns:
+            if col.lower() in message.lower():
+                col_to_remove = col
+                break
+
+        # If not found in dataset, try to extract from message pattern
+        if not col_to_remove:
+            # Look for patterns like "remove column_name" or "drop new_column"
+            words = message.split()
+            for i, word in enumerate(words):
+                if word in ["remove", "drop", "delete"] and i + 1 < len(words):
+                    potential_col = words[i + 1].strip('.,!?')
+                    if potential_col != "column":
+                        col_to_remove = potential_col
+                        break
+
+        if col_to_remove:
+            response_text = f"Here's how to remove the '{col_to_remove}' column:"
+            code = f"""# Drop the column
+df = df.drop(columns=['{col_to_remove}'])
+print(f"Removed column '{col_to_remove}'")
+print("Remaining columns:", df.columns.tolist())
+print(df.head())"""
+        else:
+            col = columns[0] if columns else "column_name"
+            response_text = "Here's how to remove a column:"
+            code = f"""# Drop single column
+df = df.drop(columns=['{col}'])
+
+# Or drop multiple columns
+df = df.drop(columns=['col1', 'col2'])
+
+print("Remaining columns:", df.columns.tolist())
+print(df.head())"""
+
     elif "column" in message and ("add" in message or "create" in message):
         col1 = columns[0] if len(columns) > 0 else "column1"
         col2 = columns[1] if len(columns) > 1 else "column2"
@@ -752,3 +788,7 @@ print(df.isnull().sum())"""
         "code": code,
         "columns": columns
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
