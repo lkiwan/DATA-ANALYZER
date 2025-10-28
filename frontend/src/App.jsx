@@ -13,7 +13,9 @@ import {
   Database,
   Zap,
   Sparkles,
-  Code
+  Code,
+  Bot,
+  Send
 } from 'lucide-react'
 
 import { Button } from './components/Button'
@@ -53,6 +55,11 @@ function App() {
   const [codeLanguage, setCodeLanguage] = useState('python')
   const [codeOutput, setCodeOutput] = useState(null)
   const [codeError, setCodeError] = useState(null)
+
+  // AI Assistant state
+  const [aiMessages, setAiMessages] = useState([])
+  const [aiInput, setAiInput] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
 
   // Load dataset from localStorage on mount
   useEffect(() => {
@@ -364,6 +371,7 @@ function App() {
     { id: 'data', label: 'Data', icon: Database },
     { id: 'clean', label: 'Clean', icon: Sparkles },
     { id: 'query', label: 'Query', icon: Zap },
+    { id: 'ai', label: 'AI Assistant', icon: Bot },
     { id: 'code', label: 'Code', icon: Code },
     { id: 'export', label: 'Export', icon: Download },
   ]

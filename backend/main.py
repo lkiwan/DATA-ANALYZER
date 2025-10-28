@@ -583,3 +583,172 @@ async def delete_rows(config: DeleteRowsConfig):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# AI Assistant Model
+class AIAssistantRequest(BaseModel):
+    message: str
+    dataset_id: Optional[str] = None
+
+@app.post("/api/ai/assistant")
+async def ai_assistant(request: AIAssistantRequest):
+    """AI Assistant that generates code based on user intent"""
+    message = request.message.lower()
+    dataset_id = request.dataset_id
+    
+    # Get dataset info if available
+    columns = []
+    if dataset_id and dataset_id in datasets:
+        columns = datasets[dataset_id].columns.tolist()
+    
+    # Generate response based on keywords and intent
+    response_text = ""
+    code = ""
+    
+    # Pattern matching for common requests
+    if "filter" in message or "where" in message or "select" in message:
+        col = columns[0] if columns else "column_name"
+        response_text = "I can help you filter your data. Here's a code example:"
+        code = f"""# Filter rows based on condition
+# Modify the condition to match your needs
+df_filtered = df[df['{col}'] > 100]
+print(f"Filtered to {{len(df_filtered)}} rows")
+print(df_filtered.head())"""
+    
+    elif "sort" in message or "order" in message:
+        col = columns[0] if columns else "column_name"
+        response_text = "Here's how to sort your data:"
+        code = f"""# Sort data by column
+df_sorted = df.sort_values(by='{col}', ascending=True)
+print(df_sorted.head())"""
+    
+    elif "group" in message or "aggregate" in message:
+        col1 = columns[0] if len(columns) > 0 else "category_column"
+        col2 = columns[1] if len(columns) > 1 else "value_column"
+        response_text = "Here's how to group and aggregate your data:"
+        code = f"""# Group by and calculate aggregations
+grouped = df.groupby('{col1}')['{col2}'].agg(['sum', 'mean', 'count'])
+print(grouped)"""
+    
+    elif "missing" in message or "null" in message or "nan" in message:
+        response_text = "Here's how to handle missing values:"
+        code = """# Handle missing values
+# Option 1: Drop rows with any missing values
+df_clean = df.dropna()
+
+# Option 2: Fill with mean (for numeric columns)
+df_filled = df.fillna(df.mean(numeric_only=True))
+
+# Option 3: Fill with a specific value
+df_filled = df.fillna(0)
+
+print(f"Original rows: {len(df)}, After cleaning: {len(df_clean)}")"""
+    
+    elif "duplicate" in message:
+        response_text = "Here's how to handle duplicates:"
+        code = """# Remove duplicate rows
+df_unique = df.drop_duplicates()
+print(f"Removed {len(df) - len(df_unique)} duplicate rows")
+print(df_unique.head())"""
+    
+    elif "column" in message and ("add" in message or "create" in message):
+        col1 = columns[0] if len(columns) > 0 else "column1"
+        col2 = columns[1] if len(columns) > 1 else "column2"
+        response_text = "Here's how to create a new column:"
+        code = f"""# Create a new calculated column
+df['new_column'] = df['{col1}'] + df['{col2}']
+# Or apply a function
+df['new_column'] = df['{col1}'].apply(lambda x: x * 2)
+print(df[['{ col1}', '{col2}', 'new_column']].head())"""
+    
+    elif "statistic" in message or "summary" in message or "describe" in message:
+        response_text = "Here's how to get statistical summary:"
+        code = """# Get descriptive statistics
+print(df.describe())
+
+# For specific columns
+print(df[['column1', 'column2']].describe())
+
+# Count unique values
+print(df['column_name'].value_counts())"""
+    
+    elif "visualiz" in message or "plot" in message or "chart" in message:
+        col = columns[0] if columns else "column_name"
+        response_text = "Note: Visualization requires matplotlib. Here's basic stats instead:"
+        code = f"""# Get distribution information
+print(df['{col}'].describe())
+print(f"\\nValue counts:")
+print(df['{col}'].value_counts().head(10))"""
+    
+    elif "merge" in message or "join" in message:
+        response_text = "Here's how to merge datasets:"
+        code = """# Merge two dataframes
+# Note: You need to have df2 loaded
+# df_merged = pd.merge(df, df2, on='common_column', how='inner')
+# print(df_merged.head())
+
+# For now, here's how to concat rows
+# df_combined = pd.concat([df, df2], ignore_index=True)
+print("Merge requires two datasets loaded")"""
+    
+    elif "export" in message or "save" in message:
+        response_text = "Here's how to export your data:"
+        code = """# Export to CSV
+# df.to_csv('output.csv', index=False)
+
+# Export to Excel
+# df.to_excel('output.xlsx', index=False)
+
+print("Use the Export button in the UI to download data")"""
+    
+    elif "column" in message and ("rename" in message):
+        col = columns[0] if columns else "old_column"
+        response_text = "Here's how to rename columns:"
+        code = f"""# Rename columns
+df = df.rename(columns={{'{col}': 'new_name'}})
+
+# Rename multiple columns
+df = df.rename(columns={{
+    'old_name1': 'new_name1',
+    'old_name2': 'new_name2'
+}})
+print(df.columns.tolist())"""
+    
+    elif "outlier" in message:
+        col = columns[0] if columns else "numeric_column"
+        response_text = "Here's how to detect and remove outliers:"
+        code = f"""# Remove outliers using IQR method
+Q1 = df['{col}'].quantile(0.25)
+Q3 = df['{col}'].quantile(0.75)
+IQR = Q3 - Q1
+df_no_outliers = df[(df['{col}'] >= Q1 - 1.5*IQR) & (df['{col}'] <= Q3 + 1.5*IQR)]
+print(f"Removed {{len(df) - len(df_no_outliers)}} outliers")"""
+    
+    elif "convert" in message or "type" in message:
+        col = columns[0] if columns else "column_name"
+        response_text = "Here's how to convert column types:"
+        code = f"""# Convert column types
+df['{col}'] = pd.to_numeric(df['{col}'], errors='coerce')  # To numeric
+df['{col}'] = df['{col}'].astype(str)  # To string
+df['{col}'] = pd.to_datetime(df['{col}'], errors='coerce')  # To datetime
+print(df.dtypes)"""
+    
+    else:
+        # Default response with available columns
+        col_list = ", ".join(columns[:5]) if columns else "column1, column2"
+        response_text = f"I can help you with data manipulation! Your dataset has columns: {col_list}. Try asking about filtering, sorting, grouping, or handling missing values."
+        code = f"""# Explore your data
+print("Dataset shape:", df.shape)
+print("\\nColumn names:", df.columns.tolist())
+print("\\nFirst few rows:")
+print(df.head())
+print("\\nData types:")
+print(df.dtypes)
+print("\\nMissing values:")
+print(df.isnull().sum())"""
+    
+    return {
+        "success": True,
+        "message": response_text,
+        "code": code,
+        "columns": columns
+    }
