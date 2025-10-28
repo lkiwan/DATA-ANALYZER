@@ -2,6 +2,17 @@
 
 A comprehensive web application for data manipulation, cleaning, transformation, and analysis. Built with React + FastAPI + Pandas.
 
+## ✨ Key Highlights
+
+🤖 **AI Assistant** - Natural language to Python code generation
+💻 **Custom Code Editor** - Execute Python directly on your data
+🔄 **Data Reset** - Restore original data with one click
+📊 **14 Data Types** - Precise type conversions (int8-64, uint8-64, float32/64)
+🧹 **Smart Cleaning** - Handle missing values, duplicates, outliers
+📈 **Statistical Analysis** - Comprehensive data insights
+🔍 **Natural Language Queries** - Query data in plain English
+💾 **Multi-format Support** - CSV, Excel, JSON, Parquet
+
 ## Features Overview
 
 ### 1. Data Import & Export
@@ -103,7 +114,53 @@ A comprehensive web application for data manipulation, cleaning, transformation,
 - Dynamic updates on data changes
 - Export charts as PNG
 
-### 7. Natural Language Queries
+### 7. AI Assistant 🤖
+**NEW!** Intelligent code generation assistant that understands natural language:
+
+**Features**:
+- Natural language to Python code conversion
+- Context-aware suggestions based on your dataset columns
+- Smart pattern matching for common operations
+- One-click code execution with "Run it" button
+- Automatic code transfer to Code Editor
+
+**Supported operations**:
+- Filter data
+- Sort and order
+- Group and aggregate
+- Handle missing values
+- Remove duplicates
+- Create/remove columns
+- Detect outliers
+- Type conversions
+- Column renaming
+- Statistical summaries
+
+**Example interactions**:
+```
+"remove new_column" → Generates: df.drop(columns=['new_column'])
+"filter data where age > 30" → Generates filter code with your columns
+"handle missing values" → Generates multiple filling strategies
+"sort by salary" → Generates sort code with your column names
+```
+
+### 8. Custom Code Editor
+Execute custom Python code directly on your dataset:
+
+**Features**:
+- Full Python code editor with syntax highlighting
+- Direct access to your dataset as `df` variable
+- Pandas and NumPy libraries available
+- Real-time code execution
+- Automatic result preview in Data tab
+- Code snippets from AI Assistant
+
+**Available in code environment**:
+- `df` - Your current dataset (pandas DataFrame)
+- `pd` - Pandas library
+- `np` - NumPy library
+
+### 9. Natural Language Queries
 Execute data operations using plain English commands:
 
 **Supported patterns**:
@@ -119,7 +176,24 @@ Execute data operations using plain English commands:
 
 The system uses rule-based parsing to understand and execute your queries.
 
-### 8. Statistical Transformations
+### 10. Data Reset Functionality
+**NEW!** Restore your dataset to its original uploaded state:
+
+**Features**:
+- One-click reset button in header
+- Restores data to original state before any transformations
+- Confirmation dialog to prevent accidental resets
+- Preserves original data in memory throughout session
+
+### 11. Enhanced Type Conversions
+Convert columns to precise data types:
+
+**Integer types**: int8, int16, int32, int64
+**Unsigned integers**: uint8, uint16, uint32, uint64
+**Float types**: float32, float64
+**Other types**: numeric (auto-detect), string, boolean, datetime
+
+### 12. Statistical Transformations
 - Log and square root transformations
 - Standardization (z-score normalization)
 - Min-max normalization
@@ -294,6 +368,16 @@ Files download automatically to your browser's download folder.
 
 ### Natural Language
 - `POST /api/query/nl` - Execute natural language query
+
+### AI Assistant
+- `POST /api/ai/assistant` - Generate Python code from natural language
+
+### Code Execution
+- `POST /api/execute/code` - Execute custom Python code on dataset
+
+### Dataset Management
+- `POST /api/datasets/{dataset_id}/reset` - Reset dataset to original state
+- `POST /api/datasets/delete-rows` - Delete specific rows by indices
 
 ## Project Structure
 
