@@ -1,0 +1,11 @@
+services:
+  # Backend API
+  - type: web
+    name: data-analyzer-backend
+    env: python
+    region: oregon
+    buildCommand: "cd data-analyzer/backend && pip install -r requirements.txt"
+    startCommand: "cd data-analyzer/backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
